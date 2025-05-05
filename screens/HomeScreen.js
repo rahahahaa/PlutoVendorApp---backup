@@ -1,0 +1,178 @@
+import React, { useEffect, useState, useContext } from "react";
+import { View, FlatList, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { fetchNewBookings } from "../services/api";
+import BookingCard from "../components/BookingCard";
+import Sidebar from "../screens/Sidebar";
+import { SidebarContext } from "../context/SidebarContext";
+import { colors, fonts, spacing } from "../styles/theme";
+import LoaderMomentum from "../components/LoaderMomentum";
+
+export default function HomeScreen() {
+    const { isSidebarOpen, setIsSidebarOpen } = useContext(SidebarContext);
+    const [bookings, setBookings] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [notificationsCount, setNotificationsCount] = useState(3); // example count
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const token = "your-hardcoded-token";
+                const responseData = await fetchNewBookings(token);
+
+                const uniqueBookings = Array.from(
+                    new Map(responseData.map((item) => [item._id || item.id, item])).values()
+                );
+
+                const transferBookings = uniqueBookings.filter(
+                    (booking) => {
+                        const convertedValue = booking.converted;
+                        return (
+                            booking.transfer &&
+                            (convertedValue === true || convertedValue === "true") &&
+                            booking.transfer.details &&
+                            Object.keys(booking.transfer.details).length > 0
+                        );
+                    }
+                );
+
+                setBookings(transferBookings);
+            } catch (error) {
+                console.error("Error fetching bookings:", error.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    if (loading) {
+        return (
+            <View style={styles.loaderContainer}>
+                <LoaderMomentum />
+            </View>
+        );
+    }
+
+    return (
+        <View style={styles.container}>
+            <Sidebar />
+            <View style={styles.content}>
+                <View style={styles.headerBox}>
+                    <TouchableOpacity
+                        style={styles.toggleButton}
+                        onPress={() => setIsSidebarOpen(!isSidebarOpen)}
+                    >
+                        <Ionicons name="menu" size={28} color={colors.primary} />
+                    </TouchableOpacity>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require("../assets/Pluto.png")}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.title}>Pluto Vendor App</Text>
+                    </View>
+                    <View style={styles.profileContainer}>
+                    </View>
+                </View>
+                {bookings.length === 0 ? (
+                    <Text style={styles.emptyMessage}>No bookings found.</Text>
+                ) : (
+                    <FlatList
+                        data={bookings}
+                        keyExtractor={(item, index) => item._id || item.id || index.toString()}
+                        renderItem={({ item }) => <BookingCard booking={item} />}
+                        ListEmptyComponent={<Text style={styles.emptyMessage}>No bookings available.</Text>}
+                    />
+                )}
+            </View>
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background,
+    },
+    content: {
+        flex: 1,
+        padding: spacing.large,
+    },
+    headerBox: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingHorizontal: spacing.medium,
+        paddingVertical: spacing.small,
+        backgroundColor: colors.cardBackground,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 6,
+        elevation: 3,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: spacing.large,
+    },
+    toggleButton: {
+        marginRight: spacing.medium,
+    },
+    logoContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+        flex: 1,
+    },
+    logo: {
+        width: 40,
+        borderRadius: 10,
+        height: 40,
+        marginRight: spacing.small,
+    },
+    title: {
+        fontSize: fonts.sizeXLarge,
+        fontWeight: "bold",
+        color: colors.textPrimary,
+        fontFamily: fonts.medium,
+    },
+    profileContainer: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    notificationIcon: {
+        marginRight: spacing.medium,
+        position: "relative",
+    },
+    notificationBadge: {
+        position: "absolute",
+        top: -4,
+        right: -4,
+        backgroundColor: colors.warning,
+        borderRadius: 8,
+        paddingHorizontal: 5,
+        minWidth: 16,
+        height: 16,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    notificationBadgeText: {
+        color: colors.cardBackground,
+        fontSize: 10,
+        fontWeight: "bold",
+    },
+    profileButton: {},
+    emptyMessage: {
+        textAlign: "center",
+        marginTop: spacing.medium,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
+    },
+    loaderContainer: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+});
