@@ -2,13 +2,22 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useContext } from "react";
+import { useNavigation } from "@react-navigation/native";
 import { SidebarContext } from "../context/SidebarContext";
+import { AuthContext } from "../context/AuthContext";
 import { colors, fonts, spacing } from "../styles/theme";
 
 export default function Sidebar() {
     const { isSidebarOpen, setIsSidebarOpen } = useContext(SidebarContext);
+    const { logout } = useContext(AuthContext);
+    const navigation = useNavigation();
 
     if (!isSidebarOpen) return null; // Hide sidebar if closed
+
+    const handleLogout = () => {
+        logout();
+        navigation.navigate("Login");
+    };
 
     return (
         <View style={styles.sidebar}>
@@ -26,6 +35,11 @@ export default function Sidebar() {
             <TouchableOpacity style={styles.menuItem}>
                 <Ionicons name="time" size={20} color={colors.primary} />
                 <Text style={styles.menuText}> Pending Bookings</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+                <Ionicons name="log-out" size={20} color={colors.danger} />
+                <Text style={[styles.menuText, { color: colors.danger }]}> Logout</Text>
             </TouchableOpacity>
         </View>
     );

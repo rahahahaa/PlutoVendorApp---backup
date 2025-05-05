@@ -1,21 +1,26 @@
-import React, { useState, useContext } from 'react';
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { AuthContext } from '../context/AuthContext';
+import React, { useState, useContext } from "react";
+import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert, Image } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { AuthContext } from "../context/AuthContext";
 
-export default function LoginScreen() {
-    const [email, setEmail] = useState('vendor@plutoride.com');
-    const [password, setPassword] = useState('password');
+export default function SignUpScreen() {
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
     const navigation = useNavigation();
     const { login } = useContext(AuthContext);
 
-    const handleLogin = async () => {
-        // Mock login validation
-        if (email === 'vendor@plutoride.com' && password === 'password') {
-            await login('mock-token-123');
-            navigation.navigate('Home');
+    const handleSignUp = async () => {
+        if (password !== confirmPassword) {
+            Alert.alert("Error", "Passwords do not match");
+            return;
+        }
+        // Mock sign-up success
+        if (email && password) {
+            await login("mock-token-123");
+            navigation.navigate("Home");
         } else {
-            Alert.alert('Error', 'Login failed. Check credentials.');
+            Alert.alert("Error", "Sign up failed");
         }
     };
 
@@ -25,9 +30,14 @@ export default function LoginScreen() {
                 <Image source={require('../assets/Pluto.png')} style={styles.logo} />
                 <Text style={styles.appName}>Plutooride</Text>
                 <View style={styles.form}>
-                    <Text style={styles.title}>Log in</Text>
-                    <Text style={styles.subtitle}>Access your account with your email.</Text>
+                    <Text style={styles.title}>Sign up</Text>
+                    <Text style={styles.subtitle}>Create a free account with your email.</Text>
                     <View style={styles.formContainer}>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Full Name"
+                            autoCapitalize="words"
+                        />
                         <TextInput
                             style={styles.input}
                             placeholder="Email"
@@ -43,16 +53,23 @@ export default function LoginScreen() {
                             value={password}
                             onChangeText={setPassword}
                         />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Confirm Password"
+                            secureTextEntry
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                        />
                     </View>
-                    <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                        <Text style={styles.buttonText}>Log in</Text>
+                    <TouchableOpacity style={styles.button} onPress={handleSignUp}>
+                        <Text style={styles.buttonText}>Sign up</Text>
                     </TouchableOpacity>
                 </View>
                 <View style={styles.formSection}>
                     <Text style={styles.formSectionText}>
-                        Don't have an account?{' '}
-                        <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
-                            Sign up
+                        Have an account?{' '}
+                        <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
+                            Log in
                         </Text>
                     </Text>
                 </View>
@@ -138,7 +155,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     formSection: {
-        // marginTop: 5,
         padding: 16,
         // backgroundColor: '#d0dffb',
         shadowColor: 'rgba(0,0,0,0.08)',
