@@ -177,6 +177,7 @@ const styles = StyleSheet.create({
     logo: {
         width: 60,
         height: 60,
+        borderRadius:20,
         marginBottom: 8,
         resizeMode: 'contain',
     },
