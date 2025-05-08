@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { View, FlatList, ActivityIndicator, Text, Image, StyleSheet } from "react-native";
-import { fetchPendingBookings } from "../services/api";
+import { fetchNewBookings } from "../services/api";
 import BookingCard from "../components/BookingCard";
 import { colors, fonts, spacing } from "../styles/themeColors";
 
