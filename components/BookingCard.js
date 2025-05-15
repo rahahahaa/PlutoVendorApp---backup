@@ -21,6 +21,8 @@ export default function BookingCard({ booking }) {
                 responseDetails: {
                     status: "accepted",
                     respondedAt: new Date(),
+                    amount: 0,
+                    reason: "",
                 },
             });
             Alert.alert("Success", "Booking accepted successfully.");
