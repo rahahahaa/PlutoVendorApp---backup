@@ -12,31 +12,12 @@ export default function HomeScreen() {
     const { isSidebarOpen, setIsSidebarOpen } = useContext(SidebarContext);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [notificationsCount, setNotificationsCount] = useState(3); // example count
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = "your-hardcoded-token";
-                const responseData = await fetchNewBookings(token);
-
-                const uniqueBookings = Array.from(
-                    new Map(responseData.map((item) => [item._id || item.id, item])).values()
-                );
-
-                const transferBookings = uniqueBookings.filter(
-                    (booking) => {
-                        const convertedValue = booking.converted;
-                        return (
-                            booking.transfer &&
-                            (convertedValue === true || convertedValue === "true") &&
-                            booking.transfer.details &&
-                            Object.keys(booking.transfer.details).length > 0
-                        );
-                    }
-                );
-
-                setBookings(transferBookings);
+                const responseData = await fetchNewBookings();
+                setBookings(responseData);
             } catch (error) {
                 console.error("Error fetching bookings:", error.message);
             } finally {
@@ -74,8 +55,7 @@ export default function HomeScreen() {
                         />
                         <Text style={styles.title}>Pluto Vendor App</Text>
                     </View>
-                    <View style={styles.profileContainer}>
-                    </View>
+                    <View style={styles.profileContainer}></View>
                 </View>
                 {bookings.length === 0 ? (
                     <Text style={styles.emptyMessage}>No bookings found.</Text>
@@ -142,28 +122,6 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
     },
-    notificationIcon: {
-        marginRight: spacing.medium,
-        position: "relative",
-    },
-    notificationBadge: {
-        position: "absolute",
-        top: -4,
-        right: -4,
-        backgroundColor: colors.warning,
-        borderRadius: 8,
-        paddingHorizontal: 5,
-        minWidth: 16,
-        height: 16,
-        justifyContent: "center",
-        alignItems: "center",
-    },
-    notificationBadgeText: {
-        color: colors.cardBackground,
-        fontSize: 10,
-        fontWeight: "bold",
-    },
-    profileButton: {},
     emptyMessage: {
         textAlign: "center",
         marginTop: spacing.medium,

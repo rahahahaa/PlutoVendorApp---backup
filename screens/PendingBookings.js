@@ -9,17 +9,17 @@ export default function PendingBookings() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const token = "your-hardcoded-token"; // Replace with dynamic token later
-                const responseData = await fetchPendingBookings(token);
-                setBookings(responseData);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
-        };
+const fetchData = async () => {
+    try {
+        const token = "your-hardcoded-token"; // Replace with dynamic token later
+        const responseData = await fetchNewBookings(token);
+        setBookings(responseData);
+    } catch (error) {
+        console.error(error);
+    } finally {
+        setLoading(false);
+    }
+};
 
         fetchData();
     }, []);

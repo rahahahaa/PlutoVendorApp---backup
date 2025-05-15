@@ -1,30 +1,69 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, Animated, ScrollView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Modal, TextInput, StyleSheet, Animated, ScrollView, Platform, Alert } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, spacing } from "../styles/theme";
+import { updateCabBooking } from "../services/api";
 
 export default function BookingCard({ booking }) {
     const [rejectModalVisible, setRejectModalVisible] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
+    const [bidPrice, setBidPrice] = useState("");
     const [elevation] = useState(new Animated.Value(1));
     const [userDetailsExpanded, setUserDetailsExpanded] = useState(true);
-    const [cabDetailsExpanded, setCabDetailsExpanded] = useState(false);
+    const [tripDetailsExpanded, setTripDetailsExpanded] = useState(false);
+    const [vehicleDetailsExpanded, setVehicleDetailsExpanded] = useState(false);
     const [itineraryExpanded, setItineraryExpanded] = useState(false);
 
-    const handleAccept = () => {
-        console.log("Booking accepted:", booking.id);
-        // Add API call to update status to "accepted"
+    const handleAccept = async () => {
+        try {
+            await updateCabBooking(booking._id, {
+                bookingStatus: "accepted",
+                responseDetails: {
+                    status: "accepted",
+                    respondedAt: new Date(),
+                },
+            });
+            Alert.alert("Success", "Booking accepted successfully.");
+        } catch (error) {
+            Alert.alert("Error", "Failed to accept booking. Please try again.");
+        }
     };
 
     const handleReject = () => {
         setRejectModalVisible(true);
     };
 
-    const submitRejection = () => {
-        console.log("Rejection reason:", rejectionReason);
-        // Add API call to update status to "rejected" with reason
-        setRejectModalVisible(false);
-        setRejectionReason("");
+    const submitRejection = async () => {
+        if (!rejectionReason.trim()) {
+            Alert.alert("Validation", "Please enter a rejection reason.");
+            return;
+        }
+        if (bidPrice && isNaN(bidPrice)) {
+            Alert.alert("Validation", "Please enter a valid bid price.");
+            return;
+        }
+        try {
+            const updateData = {
+                bookingStatus: "rejected",
+                responseDetails: {
+                    status: "rejected",
+                    reason: rejectionReason,
+                    respondedAt: new Date(),
+                    amount: 0,
+                    reason: "accept",
+                },
+            };
+            if (bidPrice) {
+                updateData.responseDetails.amount = parseFloat(bidPrice);
+            }
+            await updateCabBooking(booking._id, updateData);
+            Alert.alert("Success", "Booking rejected successfully.");
+            setRejectModalVisible(false);
+            setRejectionReason("");
+            setBidPrice("");
+        } catch (error) {
+            Alert.alert("Error", "Failed to reject booking. Please try again.");
+        }
     };
 
     const onPressIn = () => {
@@ -43,31 +82,25 @@ export default function BookingCard({ booking }) {
         }).start();
     };
 
-    // Determine left border color based on booking status
-    let statusColor = colors.primary; // blue for pending
-    if (booking.status === "accepted") {
-        statusColor = colors.success; // green
-    } else if (booking.status === "rejected") {
-        statusColor = colors.danger; // red
+    let statusColor = colors.primary;
+    if (booking.bookingStatus === "accepted") {
+        statusColor = colors.success;
+    } else if (booking.bookingStatus === "rejected") {
+        statusColor = colors.danger;
     }
 
-    // Get lead user information (assuming it's in booking.transfer.selectedLead or first hotel's selectedLead)
-    const getUserInfo = () => {
-        if (booking.transfer && booking.transfer.selectedLead) {
-            return booking.transfer.selectedLead;
-        } else if (booking.hotels && booking.hotels.length > 0 && booking.hotels[0].selectedLead) {
-            return booking.hotels[0].selectedLead;
-        }
-        return null;
-    };
-
-    const userInfo = getUserInfo();
+    const userInfo = booking.customerInfo || null;
+    const tripDetails = booking.tripDetails || null;
+    const vehicleDetails = booking.vehicleDetails || null;
+    const itinerary = booking.itinerary || [];
 
     const toggleSection = (section) => {
         if (section === 'user') {
             setUserDetailsExpanded(!userDetailsExpanded);
-        } else if (section === 'cab') {
-            setCabDetailsExpanded(!cabDetailsExpanded);
+        } else if (section === 'trip') {
+            setTripDetailsExpanded(!tripDetailsExpanded);
+        } else if (section === 'vehicle') {
+            setVehicleDetailsExpanded(!vehicleDetailsExpanded);
         } else if (section === 'itinerary') {
             setItineraryExpanded(!itineraryExpanded);
         }
@@ -91,19 +124,19 @@ export default function BookingCard({ booking }) {
             <View style={styles.headerContainer}>
                 <View style={styles.bookingIdContainer}>
                     <Text style={styles.bookingLabel}>Booking ID</Text>
-                    <Text style={styles.bookingId}>{booking.id}</Text>
+                    <Text style={styles.bookingId}>{booking._id}</Text>
                 </View>
                 <View style={styles.statusContainer}>
                     <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
                     <Text style={[styles.statusText, { color: statusColor }]}>
-                        {booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : "Pending"}
+                        {booking.bookingStatus ? booking.bookingStatus.charAt(0).toUpperCase() + booking.bookingStatus.slice(1) : "Pending"}
                     </Text>
                 </View>
             </View>
 
             <View style={styles.divider} />
 
-            {/* User Details Section */}
+            {/* Guest Information Section */}
             <TouchableOpacity
                 style={styles.sectionHeader}
                 onPress={() => toggleSection('user')}
@@ -128,24 +161,20 @@ export default function BookingCard({ booking }) {
                             <Text style={styles.infoValue}>{userInfo.name || "N/A"}</Text>
                         </View>
                         <View style={styles.userInfoItem}>
-                            <Text style={styles.infoLabel}>Phone</Text>
-                            <Text style={styles.infoValue}>{userInfo.mobile || "N/A"}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.userInfoRow}>
-                        <View style={styles.userInfoItem}>
                             <Text style={styles.infoLabel}>Email</Text>
                             <Text style={styles.infoValue}>{userInfo.email || "N/A"}</Text>
                         </View>
                     </View>
                     <View style={styles.userInfoRow}>
                         <View style={styles.userInfoItem}>
-                            <Text style={styles.infoLabel}>Adults</Text>
-                            <Text style={styles.infoValue}>{userInfo.adults || "0"}</Text>
+                            <Text style={styles.infoLabel}>Mobile</Text>
+                            <Text style={styles.infoValue}>{userInfo.mobile || "N/A"}</Text>
                         </View>
                         <View style={styles.userInfoItem}>
-                            <Text style={styles.infoLabel}>Kids</Text>
-                            <Text style={styles.infoValue}>{userInfo.kids || "0"}</Text>
+                            <Text style={styles.infoLabel}>Passengers</Text>
+                            <Text style={styles.infoValue}>
+                                Adults: {userInfo.passengers?.adults || "0"}, Kids: {userInfo.passengers?.kids || "0"}, Total: {userInfo.passengers?.total || "0"}
+                            </Text>
                         </View>
                     </View>
                 </View>
@@ -157,45 +186,101 @@ export default function BookingCard({ booking }) {
 
             <View style={styles.divider} />
 
-            {/* Cab Details Section */}
-            {booking.transfer && (
+            {/* Trip Details Section */}
+            {tripDetails && (
                 <>
                     <TouchableOpacity
                         style={styles.sectionHeader}
-                        onPress={() => toggleSection('cab')}
+                        onPress={() => toggleSection('trip')}
                         activeOpacity={0.7}
                     >
                         <View style={styles.sectionTitleContainer}>
                             <Ionicons name="car" size={20} color={colors.primary} />
-                            <Text style={styles.sectionTitle}>Transfer Details</Text>
+                            <Text style={styles.sectionTitle}>Trip Details</Text>
                         </View>
                         <Ionicons
-                            name={cabDetailsExpanded ? "chevron-up" : "chevron-down"}
+                            name={tripDetailsExpanded ? "chevron-up" : "chevron-down"}
                             size={20}
                             color={colors.textSecondary}
                         />
                     </TouchableOpacity>
 
-                    {cabDetailsExpanded && (
+                    {tripDetailsExpanded && (
                         <View style={styles.sectionContent}>
                             <View style={styles.cabDetailsRow}>
                                 <View style={styles.cabDetailItem}>
-                                    <Text style={styles.infoLabel}>Cab</Text>
-                                    <Text style={styles.infoValue}>{booking.transfer.details?.cabName || "N/A"}</Text>
+                                    <Text style={styles.infoLabel}>From</Text>
+                                    <Text style={styles.infoValue}>{tripDetails.from || "N/A"}</Text>
                                 </View>
                                 <View style={styles.cabDetailItem}>
-                                    <Text style={styles.infoLabel}>Type</Text>
-                                    <Text style={styles.infoValue}>{booking.transfer.details?.cabType || "N/A"}</Text>
+                                    <Text style={styles.infoLabel}>Destination</Text>
+                                    <Text style={styles.infoValue}>{tripDetails.destination || "N/A"}</Text>
                                 </View>
                             </View>
                             <View style={styles.cabDetailsRow}>
                                 <View style={styles.cabDetailItem}>
-                                    <Text style={styles.infoLabel}>Seats</Text>
-                                    <Text style={styles.infoValue}>{booking.transfer.details?.cabSeatingCapacity || "N/A"}</Text>
+                                    <Text style={styles.infoLabel}>Travel Date</Text>
+                                    <Text style={styles.infoValue}>{tripDetails.travelDate ? new Date(tripDetails.travelDate).toLocaleDateString() : "N/A"}</Text>
                                 </View>
                                 <View style={styles.cabDetailItem}>
-                                    <Text style={styles.infoLabel}>Price</Text>
-                                    <Text style={styles.priceValue}>₹{booking.transfer.totalCost || "N/A"}</Text>
+                                    <Text style={styles.infoLabel}>Package Type</Text>
+                                    <Text style={styles.infoValue}>{tripDetails.packageType || "N/A"}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.cabDetailsRow}>
+                                <View style={styles.cabDetailItem}>
+                                    <Text style={styles.infoLabel}>Package Category</Text>
+                                    <Text style={styles.infoValue}>{tripDetails.packageCategory || "N/A"}</Text>
+                                </View>
+                                <View style={styles.cabDetailItem}>
+                                    <Text style={styles.infoLabel}>Duration</Text>
+                                    <Text style={styles.infoValue}>
+                                        {tripDetails.duration?.days || "N/A"} days, {tripDetails.duration?.nights || "N/A"} nights
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+                    )}
+
+                    <View style={styles.divider} />
+                </>
+            )}
+
+            {/* Vehicle Details Section */}
+            {vehicleDetails && (
+                <>
+                    <TouchableOpacity
+                        style={styles.sectionHeader}
+                        onPress={() => toggleSection('vehicle')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.sectionTitleContainer}>
+                            <Ionicons name="car" size={20} color={colors.primary} />
+                            <Text style={styles.sectionTitle}>Vehicle Details</Text>
+                        </View>
+                        <Ionicons
+                            name={vehicleDetailsExpanded ? "chevron-up" : "chevron-down"}
+                            size={20}
+                            color={colors.textSecondary}
+                        />
+                    </TouchableOpacity>
+
+                    {vehicleDetailsExpanded && (
+                        <View style={styles.sectionContent}>
+                            <View style={styles.cabDetailsRow}>
+                                <View style={styles.cabDetailItem}>
+                                    <Text style={styles.infoLabel}>Name</Text>
+                                    <Text style={styles.infoValue}>{vehicleDetails.name || "N/A"}</Text>
+                                </View>
+                                <View style={styles.cabDetailItem}>
+                                    <Text style={styles.infoLabel}>Type</Text>
+                                    <Text style={styles.infoValue}>{vehicleDetails.type || "N/A"}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.cabDetailsRow}>
+                                <View style={styles.cabDetailItem}>
+                                    <Text style={styles.infoLabel}>Seating Capacity</Text>
+                                    <Text style={styles.infoValue}>{vehicleDetails.seatingCapacity || "N/A"}</Text>
                                 </View>
                             </View>
                         </View>
@@ -223,42 +308,18 @@ export default function BookingCard({ booking }) {
             </TouchableOpacity>
 
             {itineraryExpanded && (
-                booking.hotels && booking.hotels.length > 0 ? (
+                itinerary.length > 0 ? (
                     <ScrollView style={styles.itineraryContainer} nestedScrollEnabled={true}>
-                        {booking.hotels.map((hotel, index) => (
-                            <View key={index} style={styles.itineraryDay}>
-                                <View style={styles.itineraryDayHeader}>
-                                    <Text style={styles.itineraryDayTitle}>Day {hotel.day || index + 1}</Text>
-                                    <Text style={styles.itineraryDayLocation}>{hotel.cityName || "N/A"}</Text>
-                                </View>
-
-                                <View style={styles.accommodationSection}>
-                                    <Text style={styles.accommodationTitle}>Accommodation</Text>
-                                    <View style={styles.hotelDetailRow}>
-                                        <View style={styles.hotelDetailItem}>
-                                            <Text style={styles.infoLabel}>Property</Text>
-                                            <Text style={styles.infoValue}>{hotel.propertyName || "N/A"}</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.hotelDetailRow}>
-                                        <View style={styles.hotelDetailItem}>
-                                            <Text style={styles.infoLabel}>Room Type</Text>
-                                            <Text style={styles.infoValue}>{hotel.roomName || "N/A"}</Text>
-                                        </View>
-                                        <View style={styles.hotelDetailItem}>
-                                            <Text style={styles.infoLabel}>Meal Plan</Text>
-                                            <Text style={styles.infoValue}>{hotel.mealPlan || "N/A"}</Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.hotelDetailRow}>
-                                        <View style={styles.hotelDetailItem}>
-                                            <Text style={styles.infoLabel}>Cost</Text>
-                                            <Text style={styles.priceValue}>₹{hotel.cost || "N/A"}</Text>
-                                        </View>
-                                    </View>
-                                </View>
-
-                                <View style={styles.itineraryDivider} />
+                        {itinerary.map((item, index) => (
+                            <View key={index} style={styles.itineraryItem}>
+                                <Text style={styles.itineraryTitle}>{item.itineraryTitle}</Text>
+                                <Text style={styles.itineraryDescription}>{item.itineraryDescription}</Text>
+                                {item.cityName && <Text style={styles.itineraryCity}>City: {item.cityName}</Text>}
+                                {item.totalHours && <Text style={styles.itineraryHours}>Total Hours: {item.totalHours}</Text>}
+                                {item.distance && <Text style={styles.itineraryDistance}>Distance: {item.distance} km</Text>}
+                                {item.cityArea && item.cityArea.length > 0 && (
+                                    <Text style={styles.itineraryCityArea}>Areas: {item.cityArea.join(", ")}</Text>
+                                )}
                             </View>
                         ))}
                     </ScrollView>
@@ -273,14 +334,14 @@ export default function BookingCard({ booking }) {
             <View style={styles.totalPriceContainer}>
                 <Text style={styles.totalPriceLabel}>Total Price</Text>
                 <Text style={styles.totalPriceValue}>
-                    ₹{calculateTotalPrice(booking)}
+                    ₹{booking.cost || "N/A"}
                 </Text>
             </View>
 
             <View style={styles.divider} />
 
             {/* Actions */}
-            <View style={styles.actions}>
+            <View style={styles.actionsContainer}>
                 <TouchableOpacity
                     style={styles.acceptButton}
                     onPress={handleAccept}
@@ -288,9 +349,10 @@ export default function BookingCard({ booking }) {
                     onPressOut={onPressOut}
                     activeOpacity={0.8}
                 >
-                    <Ionicons name="checkmark" size={20} color={colors.cardBackground} />
+                    <Ionicons name="checkmark-circle" size={22} color={colors.cardBackground} />
                     <Text style={styles.acceptButtonText}>Accept</Text>
                 </TouchableOpacity>
+
                 <TouchableOpacity
                     style={styles.rejectButton}
                     onPress={handleReject}
@@ -298,7 +360,7 @@ export default function BookingCard({ booking }) {
                     onPressOut={onPressOut}
                     activeOpacity={0.8}
                 >
-                    <Ionicons name="close" size={20} color={colors.danger} />
+                    <Ionicons name="close-circle" size={22} color={colors.danger} />
                     <Text style={styles.rejectButtonText}>Reject</Text>
                 </TouchableOpacity>
             </View>
@@ -315,6 +377,14 @@ export default function BookingCard({ booking }) {
                             placeholder="Please specify why you're rejecting this booking"
                             multiline={true}
                             numberOfLines={4}
+                        />
+                        <Text style={{ fontWeight: '600', marginBottom: 8 }}>Bid Your Price (Optional)</Text>
+                        <TextInput
+                            style={[styles.input, { height: 50 }]}
+                            value={bidPrice}
+                            onChangeText={setBidPrice}
+                            placeholder="Enter your bid price"
+                            keyboardType="numeric"
                         />
                         <View style={styles.modalActions}>
                             <TouchableOpacity
@@ -336,27 +406,6 @@ export default function BookingCard({ booking }) {
         </Animated.View>
     );
 }
-
-// Helper function to calculate total price
-const calculateTotalPrice = (booking) => {
-    let total = 0;
-
-    // Add transfer cost if available
-    if (booking.transfer && booking.transfer.totalCost) {
-        total += parseFloat(booking.transfer.totalCost);
-    }
-
-    // Add hotel costs if available
-    if (booking.hotels && booking.hotels.length > 0) {
-        booking.hotels.forEach(hotel => {
-            if (hotel.cost) {
-                total += parseFloat(hotel.cost);
-            }
-        });
-    }
-
-    return total.toFixed(2);
-};
 
 const styles = StyleSheet.create({
     card: {
@@ -497,24 +546,39 @@ const styles = StyleSheet.create({
         color: colors.textSecondary,
         fontFamily: fonts.regular,
     },
-    accommodationSection: {
-        marginTop: spacing.tiny,
+    itineraryItem: {
+        marginBottom: spacing.small,
     },
-    accommodationTitle: {
+    itineraryTitle: {
         fontSize: fonts.sizeSmall,
-        fontWeight: "500",
+        fontWeight: "600",
         color: colors.textPrimary,
-        marginBottom: spacing.tiny,
         fontFamily: fonts.medium,
     },
-    hotelDetailRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: spacing.tiny,
+    itineraryDescription: {
+        fontSize: fonts.sizeSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
     },
-    hotelDetailItem: {
-        flex: 1,
-        marginRight: spacing.small,
+    itineraryCity: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
+    },
+    itineraryHours: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
+    },
+    itineraryDistance: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
+    },
+    itineraryCityArea: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
     },
     itineraryDivider: {
         height: 1,
@@ -542,58 +606,69 @@ const styles = StyleSheet.create({
     noData: {
         fontSize: fonts.sizeSmall,
         color: colors.textSecondary,
-        textAlign: "center",
+        textAlign: 'center',
         marginVertical: spacing.small,
         fontFamily: fonts.regular,
     },
-    actions: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+    actionsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         marginTop: spacing.small,
+        marginBottom: spacing.medium,
     },
     acceptButton: {
         flex: 1,
-        flexDirection: "row",
-        justifyContent: "center",
-        alignItems: "center",
-        paddingVertical: spacing.medium,
-        paddingHorizontal: spacing.small,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 14,
         borderRadius: 8,
         backgroundColor: colors.success,
         marginRight: spacing.small,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
     },
     acceptButtonText: {
         color: colors.cardBackground,
         fontFamily: fonts.medium,
         fontSize: fonts.sizeMedium,
-        marginLeft: 4,
+        marginLeft: 8,
+        fontWeight: '600',
     },
     rejectButton: {
         flex: 1,
-        flexDirection: "row",
-        justifyContent: "center",
-        alignItems: "center",
-        paddingVertical: spacing.medium,
-        paddingHorizontal: spacing.small,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 14,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: colors.danger,
         backgroundColor: colors.cardBackground,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 1,
     },
     rejectButtonText: {
         color: colors.danger,
         fontFamily: fonts.medium,
         fontSize: fonts.sizeMedium,
-        marginLeft: 4,
+        marginLeft: 8,
+        fontWeight: '600',
     },
     modalContainer: {
         flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContent: {
-        width: "85%",
+        width: '85%',
         padding: spacing.large,
         backgroundColor: colors.cardBackground,
         borderRadius: 12,
@@ -611,10 +686,10 @@ const styles = StyleSheet.create({
     },
     modalTitle: {
         fontSize: fonts.sizeLarge,
-        fontWeight: "600",
+        fontWeight: '600',
         color: colors.textPrimary,
         marginBottom: spacing.medium,
-        textAlign: "center",
+        textAlign: 'center',
         fontFamily: fonts.medium,
     },
     input: {
@@ -629,8 +704,8 @@ const styles = StyleSheet.create({
         minHeight: 100,
     },
     modalActions: {
-        flexDirection: "row",
-        justifyContent: "space-between",
+        flexDirection: 'row',
+        justifyContent: 'space-between',
     },
     modalSubmitButton: {
         backgroundColor: colors.primary,
@@ -643,7 +718,7 @@ const styles = StyleSheet.create({
     },
     modalSubmitText: {
         color: colors.cardBackground,
-        fontWeight: "600",
+        fontWeight: '600',
         fontFamily: fonts.medium,
         fontSize: fonts.sizeMedium,
     },
@@ -659,7 +734,7 @@ const styles = StyleSheet.create({
     },
     modalCancelText: {
         color: colors.textSecondary,
-        fontWeight: "600",
+        fontWeight: '600',
         fontFamily: fonts.medium,
         fontSize: fonts.sizeMedium,
     },

@@ -1,19 +1,88 @@
 import React, { useState, useContext, useRef } from "react";
-import { View, TextInput, Text, TouchableOpacity, StyleSheet, Alert, Image, Animated } from "react-native";
+import {
+    View,
+    TextInput,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
+    Image,
+    Animated,
+    ActivityIndicator,
+    ScrollView,
+    Modal,
+    FlatList,
+    SafeAreaView,
+    StatusBar,
+    Dimensions
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { AuthContext } from "../context/AuthContext";
 import { Ionicons } from '@expo/vector-icons';
-import { FontAwesome } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { signupCabUser } from "../services/api";
+
+const { width, height } = Dimensions.get('window');
+
+const indianStates = [
+    "Andhra Pradesh",
+    "Arunachal Pradesh",
+    "Assam",
+    "Bihar",
+    "Chhattisgarh",
+    "Goa",
+    "Gujarat",
+    "Haryana",
+    "Himachal Pradesh",
+    "Jharkhand",
+    "Karnataka",
+    "Kerala",
+    "Madhya Pradesh",
+    "Maharashtra",
+    "Manipur",
+    "Meghalaya",
+    "Mizoram",
+    "Nagaland",
+    "Odisha",
+    "Punjab",
+    "Rajasthan",
+    "Sikkim",
+    "Tamil Nadu",
+    "Telangana",
+    "Tripura",
+    "Uttar Pradesh",
+    "Uttarakhand",
+    "West Bengal",
+];
 
 export default function SignUpScreen() {
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [mobile, setMobile] = useState("");
+    const [drivingLicense, setDrivingLicense] = useState("");
+    const [RC, setRC] = useState("");
+    const [states, setStates] = useState([]);
     const [passwordFocused, setPasswordFocused] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [stateDropdownVisible, setStateDropdownVisible] = useState(false);
+    const [activeSection, setActiveSection] = useState('personal');
+
     const navigation = useNavigation();
     const { login } = useContext(AuthContext);
 
     const buttonScale = useRef(new Animated.Value(1)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Animate component on mount
+    React.useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+        }).start();
+    }, []);
 
     const onPressIn = () => {
         Animated.spring(buttonScale, {
@@ -31,6 +100,14 @@ export default function SignUpScreen() {
         }).start();
     };
 
+    const toggleStateSelection = (state) => {
+        if (states.includes(state)) {
+            setStates(states.filter(s => s !== state));
+        } else {
+            setStates([...states, state]);
+        }
+    };
+
     const passwordStrength = () => {
         if (password.length === 0) return '';
         if (password.length < 4) return 'Weak';
@@ -38,53 +115,229 @@ export default function SignUpScreen() {
         return 'Strong';
     };
 
+    const getPasswordStrengthColor = () => {
+        const strength = passwordStrength();
+        if (strength === 'Weak') return '#FF3B30';
+        if (strength === 'Medium') return '#FF9500';
+        return '#34C759';
+    };
+
     const handleSignUp = async () => {
         if (password !== confirmPassword) {
             Alert.alert("Error", "Passwords do not match");
             return;
         }
-        // Mock sign-up success
-        if (email && password) {
-            await login("mock-token-123");
-            navigation.navigate("Home");
-        } else {
-            Alert.alert("Error", "Sign up failed");
+        if (!name.trim()) {
+            Alert.alert("Error", "Please enter your full name");
+            return;
+        }
+        if (!email.trim()) {
+            Alert.alert("Error", "Please enter your email");
+            return;
+        }
+        if (!password) {
+            Alert.alert("Error", "Please enter your password");
+            return;
+        }
+        if (!mobile.trim()) {
+            Alert.alert("Error", "Please enter your mobile number");
+            return;
+        }
+        if (!drivingLicense.trim()) {
+            Alert.alert("Error", "Please enter your driving license");
+            return;
+        }
+        if (!RC.trim()) {
+            Alert.alert("Error", "Please enter your RC");
+            return;
+        }
+        if (states.length === 0) {
+            Alert.alert("Error", "Please select at least one state");
+            return;
+        }
+        setLoading(true);
+        try {
+            const response = await signupCabUser(name, email, password, mobile, drivingLicense, RC, states);
+            if (response && response.token) {
+                await login(response.token);
+                navigation.navigate("Home");
+            } else {
+                Alert.alert("Error", "Sign up failed. Please try again.");
+            }
+        } catch (error) {
+            Alert.alert("Error", error.message || "Sign up failed. Please try again.");
+        } finally {
+            setLoading(false);
         }
     };
 
-    return (
-        <View style={styles.wrapper}>
-            <View style={styles.formBox}>
-                <Image source={require('../assets/Pluto.png')} style={styles.logo} />
-                <Text style={styles.appName}>Plutooride</Text>
-                <View style={styles.form}>
-                    <Text style={styles.title}>Sign up</Text>
-                    <Text style={styles.subtitle}>Create a free account with your email.</Text>
-                    <View style={styles.formContainer}>
+    const renderProgressBar = () => {
+        const sections = ['personal', 'vehicle', 'credentials'];
+        const currentIndex = sections.indexOf(activeSection);
+
+        return (
+            <View style={styles.progressContainer}>
+                {sections.map((section, index) => (
+                    <React.Fragment key={section}>
+                        <View
+                            style={[
+                                styles.progressDot,
+                                index <= currentIndex ? styles.progressDotActive : null
+                            ]}
+                        />
+                        {index < sections.length - 1 && (
+                            <View
+                                style={[
+                                    styles.progressLine,
+                                    index < currentIndex ? styles.progressLineActive : null
+                                ]}
+                            />
+                        )}
+                    </React.Fragment>
+                ))}
+            </View>
+        );
+    };
+
+    const renderSectionTitle = () => {
+        switch (activeSection) {
+            case 'personal':
+                return 'Personal Information';
+            case 'vehicle':
+                return 'Vehicle Details';
+            case 'credentials':
+                return 'Create Account';
+            default:
+                return '';
+        }
+    };
+
+    const renderFormSection = () => {
+        switch (activeSection) {
+            case 'personal':
+                return (
+                    <>
                         <View style={styles.inputWrapper}>
-                            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+                            <Ionicons name="person" size={20} color="#2C3E50" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Full Name"
+                                placeholderTextColor="#95A5A6"
                                 autoCapitalize="words"
+                                value={name}
+                                onChangeText={setName}
                             />
                         </View>
                         <View style={styles.inputWrapper}>
-                            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+                            <Ionicons name="mail" size={20} color="#2C3E50" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Email"
+                                placeholderTextColor="#95A5A6"
                                 value={email}
                                 onChangeText={setEmail}
                                 autoCapitalize="none"
                                 keyboardType="email-address"
                             />
                         </View>
-                        <View style={[styles.inputWrapper, passwordFocused && styles.inputFocused]}>
-                            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="call" size={20} color="#2C3E50" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Mobile"
+                                placeholderTextColor="#95A5A6"
+                                value={mobile}
+                                onChangeText={setMobile}
+                                keyboardType="phone-pad"
+                            />
+                        </View>
+                        <View style={styles.buttonRow}>
+                            <Animated.View style={{ transform: [{ scale: buttonScale }], flex: 1 }}>
+                                <TouchableOpacity
+                                    style={styles.nextButton}
+                                    onPress={() => setActiveSection('vehicle')}
+                                    activeOpacity={0.8}
+                                    onPressIn={onPressIn}
+                                    onPressOut={onPressOut}
+                                >
+                                    <Text style={styles.buttonText}>Next</Text>
+                                    <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                    </>
+                );
+            case 'vehicle':
+                return (
+                    <>
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="card" size={20} color="#2C3E50" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="Driving License"
+                                placeholderTextColor="#95A5A6"
+                                value={drivingLicense}
+                                onChangeText={setDrivingLicense}
+                                autoCapitalize="characters"
+                            />
+                        </View>
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="document-text" size={20} color="#2C3E50" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                placeholder="RC Number"
+                                placeholderTextColor="#95A5A6"
+                                value={RC}
+                                onChangeText={setRC}
+                                autoCapitalize="characters"
+                            />
+                        </View>
+                        <TouchableOpacity
+                            style={styles.stateSelector}
+                            onPress={() => setStateDropdownVisible(true)}
+                        >
+                            <Ionicons name="location" size={20} color="#2C3E50" style={styles.inputIcon} />
+                            <Text style={states.length ? styles.stateText : styles.statePlaceholder}>
+                                {states.length > 0
+                                    ? (states.length > 2
+                                        ? `${states.length} states selected`
+                                        : states.join(", "))
+                                    : "Select Operating States"}
+                            </Text>
+                            <Ionicons name="chevron-down" size={20} color="#2C3E50" />
+                        </TouchableOpacity>
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={() => setActiveSection('personal')}
+                            >
+                                <Ionicons name="arrow-back" size={20} color="#2C3E50" />
+                                <Text style={styles.backButtonText}>Back</Text>
+                            </TouchableOpacity>
+                            <Animated.View style={{ transform: [{ scale: buttonScale }], flex: 1 }}>
+                                <TouchableOpacity
+                                    style={styles.nextButton}
+                                    onPress={() => setActiveSection('credentials')}
+                                    activeOpacity={0.8}
+                                    onPressIn={onPressIn}
+                                    onPressOut={onPressOut}
+                                >
+                                    <Text style={styles.buttonText}>Next</Text>
+                                    <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                    </>
+                );
+            case 'credentials':
+                return (
+                    <>
+                        <View style={styles.inputWrapper}>
+                            <Ionicons name="lock-closed" size={20} color="#2C3E50" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Password"
+                                placeholderTextColor="#95A5A6"
                                 secureTextEntry
                                 value={password}
                                 onChangeText={setPassword}
@@ -93,225 +346,464 @@ export default function SignUpScreen() {
                             />
                         </View>
                         {password.length > 0 && (
-                            <Text style={[styles.passwordStrength, passwordStrength() === 'Weak' ? styles.weak : passwordStrength() === 'Medium' ? styles.medium : styles.strong]}>
-                                Password strength: {passwordStrength()}
-                            </Text>
+                            <View style={styles.passwordStrengthContainer}>
+                                <Text style={styles.passwordStrengthLabel}>Password strength:</Text>
+                                <View style={styles.strengthBarContainer}>
+                                    <View
+                                        style={[
+                                            styles.strengthBar,
+                                            {
+                                                width: password.length < 4 ? '33%' : password.length < 8 ? '66%' : '100%',
+                                                backgroundColor: getPasswordStrengthColor()
+                                            }
+                                        ]}
+                                    />
+                                </View>
+                                <Text style={[styles.passwordStrengthText, { color: getPasswordStrengthColor() }]}>
+                                    {passwordStrength()}
+                                </Text>
+                            </View>
                         )}
                         <View style={styles.inputWrapper}>
-                            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+                            <Ionicons name="lock-closed" size={20} color="#2C3E50" style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Confirm Password"
+                                placeholderTextColor="#95A5A6"
                                 secureTextEntry
                                 value={confirmPassword}
                                 onChangeText={setConfirmPassword}
                             />
                         </View>
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity
+                                style={styles.backButton}
+                                onPress={() => setActiveSection('vehicle')}
+                            >
+                                <Ionicons name="arrow-back" size={20} color="#2C3E50" />
+                                <Text style={styles.backButtonText}>Back</Text>
+                            </TouchableOpacity>
+                            <Animated.View style={{ transform: [{ scale: buttonScale }], flex: 1 }}>
+                                <TouchableOpacity
+                                    style={styles.signupButton}
+                                    onPress={handleSignUp}
+                                    activeOpacity={0.8}
+                                    onPressIn={onPressIn}
+                                    onPressOut={onPressOut}
+                                    disabled={loading}
+                                >
+                                    {loading ? (
+                                        <ActivityIndicator size="small" color="#fff" />
+                                    ) : (
+                                        <>
+                                            <Text style={styles.buttonText}>Create Account</Text>
+                                            <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                    </>
+                );
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+            <LinearGradient
+                colors={['#4b6cb7', '#182848']}
+                style={styles.gradientBackground}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+            />
+            <ScrollView contentContainerStyle={styles.wrapper}>
+                <Animated.View
+                    style={[
+                        styles.formBox,
+                        {
+                            opacity: fadeAnim, transform: [{
+                                translateY: fadeAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [50, 0]
+                                })
+                            }]
+                        }
+                    ]}
+                >
+                    <View style={styles.logoContainer}>
+                        <Image source={require('../assets/Pluto.png')} style={styles.logo} />
+                        <Text style={styles.appName}>Plutooride</Text>
+                        <Text style={styles.tagline}>Drive with us. Earn with us.</Text>
                     </View>
-                    <Animated.View style={{ transform: [{ scale: buttonScale }], width: '100%' }}>
-                        <TouchableOpacity
-                            style={styles.button}
-                            onPress={handleSignUp}
-                            activeOpacity={0.8}
-                            onPressIn={onPressIn}
-                            onPressOut={onPressOut}
-                        >
-                            <Text style={styles.buttonText}>Sign up</Text>
-                        </TouchableOpacity>
-                    </Animated.View>
-                    {/* <View style={styles.socialLoginContainer}>
-                        <Text style={styles.socialLoginText}>Or sign up with</Text>
-                        <View style={styles.socialButtons}>
-                            <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#db4437' }]}>
-                                <FontAwesome name="google" size={24} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#000' }]}>
-                                <FontAwesome name="apple" size={24} color="#fff" />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={[styles.socialButton, { backgroundColor: '#3b5998' }]}>
-                                <FontAwesome name="facebook" size={24} color="#fff" />
+
+                    <View style={styles.form}>
+                        {renderProgressBar()}
+                        <Text style={styles.sectionTitle}>{renderSectionTitle()}</Text>
+
+                        <View style={styles.formContainer}>
+                            {renderFormSection()}
+                        </View>
+
+                        <View style={styles.securitySection}>
+                            <Ionicons name="shield-checkmark" size={20} color="#34C759" />
+                            <Text style={styles.securityText}>Your data is secure and encrypted</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.formFooter}>
+                        <Text style={styles.formFooterText}>
+                            Have an account?{' '}
+                            <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
+                                Log in
+                            </Text>
+                        </Text>
+                    </View>
+                </Animated.View>
+            </ScrollView>
+
+            {/* States Selection Modal */}
+            <Modal visible={stateDropdownVisible} transparent animationType="fade">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Select Operating States</Text>
+                            <TouchableOpacity onPress={() => setStateDropdownVisible(false)}>
+                                <Ionicons name="close-circle" size={28} color="#2C3E50" />
                             </TouchableOpacity>
                         </View>
-                    </View> */}
-                    <View style={styles.securitySection}>
-                        <Ionicons name="shield-checkmark-outline" size={20} color="#4caf50" />
-                        <Text style={styles.securityText}>Protected by encryption</Text>
+                        <FlatList
+                            data={indianStates}
+                            keyExtractor={(item) => item}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    style={styles.checkboxContainer}
+                                    onPress={() => toggleStateSelection(item)}
+                                >
+                                    <Ionicons
+                                        name={states.includes(item) ? "checkbox" : "square-outline"}
+                                        size={24}
+                                        color="#4b6cb7"
+                                    />
+                                    <Text style={styles.checkboxLabel}>{item}</Text>
+                                </TouchableOpacity>
+                            )}
+                            style={styles.statesList}
+                        />
+                        <TouchableOpacity
+                            style={styles.modalButton}
+                            onPress={() => setStateDropdownVisible(false)}
+                        >
+                            <Text style={styles.modalButtonText}>
+                                Confirm ({states.length} selected)
+                            </Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
-                <View style={styles.formSection}>
-                    <Text style={styles.formSectionText}>
-                        Have an account?{' '}
-                        <Text style={styles.link} onPress={() => navigation.navigate('Login')}>
-                            Log in
-                        </Text>
-                    </Text>
-                </View>
-            </View>
-        </View>
+            </Modal>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    wrapper: {
+    safeArea: {
         flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    gradientBackground: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        top: 0,
+        height: height * 0.4,
+    },
+    wrapper: {
+        flexGrow: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#d0e1fd',
-        padding: 20,
+        paddingVertical: 40,
+        paddingHorizontal: 20,
     },
     formBox: {
-        maxWidth: 300,
         width: '100%',
-        backgroundColor: '#f1f7fe',
-        borderRadius: 16,
+        maxWidth: 380,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
         overflow: 'hidden',
-        color: '#010101',
-        alignItems: 'center',
-        paddingVertical: 20,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 10 },
         shadowOpacity: 0.1,
-        shadowRadius: 10,
-        elevation: 8,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    logoContainer: {
+        alignItems: 'center',
+        paddingTop: 30,
+        paddingBottom: 20,
     },
     logo: {
-        width: 60,
-        height: 60,
-        borderRadius:20,
-        marginBottom: 8,
+        width: 70,
+        height: 70,
+        borderRadius: 20,
+        marginBottom: 12,
         resizeMode: 'contain',
     },
     appName: {
-        fontSize: 32,
+        fontSize: 36,
         fontWeight: '900',
-        fontFamily: 'Arial Black, Arial, sans-serif',
-        color: '#0066ff',
-        marginBottom: 16,
+        color: '#4b6cb7',
+        marginBottom: 6,
+    },
+    tagline: {
+        fontSize: 14,
+        color: '#7F8C8D',
+        marginBottom: 10,
+    },
+    progressContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+    },
+    progressDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#E0E0E0',
+    },
+    progressDotActive: {
+        backgroundColor: '#4b6cb7',
+    },
+    progressLine: {
+        width: 40,
+        height: 3,
+        backgroundColor: '#E0E0E0',
+        marginHorizontal: 4,
+    },
+    progressLineActive: {
+        backgroundColor: '#4b6cb7',
     },
     form: {
-        width: '100%',
         paddingHorizontal: 24,
-        gap: 16,
-        alignItems: 'center',
+        paddingBottom: 20,
     },
-    title: {
-        fontWeight: 'bold',
-        fontSize: 24,
-        marginBottom: 4,
-        color: '#010101',
-    },
-    subtitle: {
-        fontSize: 16,
-        color: '#666',
-        marginBottom: 16,
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#2C3E50',
+        marginBottom: 20,
         textAlign: 'center',
     },
     formContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        width: '100%',
         marginBottom: 16,
-        overflow: 'hidden',
     },
     inputWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
-        borderBottomWidth: 1,
-        borderBottomColor: '#666',
-        paddingHorizontal: 15,
-        height: 40,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        marginBottom: 16,
+        height: 56,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
     inputIcon: {
-        marginRight: 8,
+        marginRight: 12,
     },
     input: {
         flex: 1,
         fontSize: 16,
-        fontWeight: '600',
+        color: '#2C3E50',
         height: '100%',
     },
-    inputFocused: {
-        borderBottomColor: '#0066ff',
+    stateSelector: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#F8F9FA',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        marginBottom: 16,
+        height: 56,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
     },
-    passwordStrength: {
-        marginTop: 4,
-        fontSize: 8,
-        paddingLeft:5,
+    stateText: {
+        flex: 1,
+        fontSize: 16,
+        color: '#2C3E50',
+    },
+    statePlaceholder: {
+        flex: 1,
+        fontSize: 16,
+        color: '#95A5A6',
+    },
+    passwordStrengthContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: -8,
+        marginBottom: 16,
+        paddingHorizontal: 6,
+    },
+    passwordStrengthLabel: {
+        fontSize: 12,
+        color: '#7F8C8D',
+        marginRight: 8,
+    },
+    strengthBarContainer: {
+        flex: 1,
+        height: 4,
+        backgroundColor: '#E0E0E0',
+        borderRadius: 2,
+        marginRight: 8,
+    },
+    strengthBar: {
+        height: '100%',
+        borderRadius: 2,
+    },
+    passwordStrengthText: {
+        fontSize: 12,
         fontWeight: '600',
     },
-    weak: {
-        color: 'red',
+    buttonRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 8,
     },
-    medium: {
-        color: 'orange',
-    },
-    strong: {
-        color: 'green',
-    },
-    button: {
-        backgroundColor: '#4b6cb7',
-        borderRadius: 24,
+    backButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingVertical: 10,
         paddingHorizontal: 16,
-        width: '100%',
+        marginRight: 12,
+    },
+    backButtonText: {
+        color: '#2C3E50',
+        fontWeight: '600',
+        marginLeft: 4,
+    },
+    nextButton: {
+        backgroundColor: '#4b6cb7',
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
         alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
         shadowColor: '#4b6cb7',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
+    },
+    signupButton: {
+        backgroundColor: '#182848',
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexDirection: 'row',
+        shadowColor: '#182848',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 4,
     },
     buttonText: {
-        color: '#fff',
-        fontWeight: '600',
+        color: '#FFFFFF',
+        fontWeight: '700',
         fontSize: 16,
-    },
-    socialLoginContainer: {
-        marginTop: 16,
-        alignItems: 'center',
-    },
-    socialLoginText: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 8,
-    },
-    socialButtons: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-        width: 180,
-    },
-    socialButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
     },
     securitySection: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 12,
+        justifyContent: 'center',
+        marginTop: 16,
     },
     securityText: {
         marginLeft: 8,
-        fontSize: 12,
-        color: '#4caf50',
+        fontSize: 14,
+        color: '#34C759',
+        fontWeight: '500',
     },
-    formSection: {
-        padding: 16,
-        // backgroundColor: '#d0dffb',
-        shadowColor: 'rgba(0,0,0,0.08)',
-        shadowOffset: { width: 0, height: -1 },
-        shadowOpacity: 1,
-        shadowRadius: 0,
+    formFooter: {
+        borderTopWidth: 1,
+        borderTopColor: '#E0E0E0',
+        paddingVertical: 20,
         alignItems: 'center',
     },
-    formSectionText: {
-        fontSize: 14,
-        color: '#010101',
+    formFooterText: {
+        fontSize: 15,
+        color: '#2C3E50',
     },
     link: {
         fontWeight: 'bold',
-        color: '#0066ff',
-        textDecorationLine: 'underline',
+        color: '#4b6cb7',
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        width: '100%',
+        maxWidth: 380,
+        borderRadius: 24,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E0E0E0',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#2C3E50',
+    },
+    statesList: {
+        maxHeight: 320,
+    },
+    checkboxContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F0F0F0',
+    },
+    checkboxLabel: {
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#2C3E50',
+    },
+    modalButton: {
+        backgroundColor: '#4b6cb7',
+        marginHorizontal: 20,
+        marginVertical: 16,
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    modalButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 16,
     },
 });
