@@ -50,7 +50,6 @@ export default function BookingCard({ booking }) {
                     reason: rejectionReason,
                     respondedAt: new Date(),
                     amount: 0,
-                    reason: "accept",
                 },
             };
             if (bidPrice) {
@@ -104,6 +103,17 @@ export default function BookingCard({ booking }) {
         } else if (section === 'itinerary') {
             setItineraryExpanded(!itineraryExpanded);
         }
+    };
+
+    // Format currency value
+    const formatCurrency = (value) => {
+        if (!value || isNaN(value)) return "N/A";
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(value);
     };
 
     return (
@@ -195,7 +205,7 @@ export default function BookingCard({ booking }) {
                         activeOpacity={0.7}
                     >
                         <View style={styles.sectionTitleContainer}>
-                            <Ionicons name="car" size={20} color={colors.primary} />
+                            <Ionicons name="map" size={20} color={colors.primary} />
                             <Text style={styles.sectionTitle}>Trip Details</Text>
                         </View>
                         <Ionicons
@@ -310,18 +320,64 @@ export default function BookingCard({ booking }) {
             {itineraryExpanded && (
                 itinerary.length > 0 ? (
                     <ScrollView style={styles.itineraryContainer} nestedScrollEnabled={true}>
-                        {itinerary.map((item, index) => (
-                            <View key={index} style={styles.itineraryItem}>
-                                <Text style={styles.itineraryTitle}>{item.itineraryTitle}</Text>
-                                <Text style={styles.itineraryDescription}>{item.itineraryDescription}</Text>
-                                {item.cityName && <Text style={styles.itineraryCity}>City: {item.cityName}</Text>}
-                                {item.totalHours && <Text style={styles.itineraryHours}>Total Hours: {item.totalHours}</Text>}
-                                {item.distance && <Text style={styles.itineraryDistance}>Distance: {item.distance} km</Text>}
-                                {item.cityArea && item.cityArea.length > 0 && (
-                                    <Text style={styles.itineraryCityArea}>Areas: {item.cityArea.join(", ")}</Text>
-                                )}
-                            </View>
-                        ))}
+                        {itinerary.map((item, index) => {
+                            const selected = item.selectedItinerary || {};
+                            return (
+                                <View key={index} style={styles.itineraryItem}>
+                                    <View style={styles.itineraryHeader}>
+                                        <View style={styles.itineraryDayBadge}>
+                                            <Text style={styles.itineraryDayText}>Day {index + 1}</Text>
+                                        </View>
+                                        <Text style={styles.itineraryTitle}>{selected.itineraryTitle || "No Title"}</Text>
+                                    </View>
+
+                                    <Text style={styles.itineraryDescription}>{selected.itineraryDescription || "No Description"}</Text>
+
+                                    <View style={styles.itineraryDetailsContainer}>
+                                        {selected.cityName && (
+                                            <View style={styles.itineraryDetailItem}>
+                                                <Ionicons name="location" size={14} color={colors.primary} />
+                                                <Text style={styles.itineraryDetailText}>{selected.cityName}</Text>
+                                            </View>
+                                        )}
+
+                                        {selected.totalHours && (
+                                            <View style={styles.itineraryDetailItem}>
+                                                <Ionicons name="time" size={14} color={colors.primary} />
+                                                <Text style={styles.itineraryDetailText}>{selected.totalHours} hours</Text>
+                                            </View>
+                                        )}
+
+                                        {selected.distance && (
+                                            <View style={styles.itineraryDetailItem}>
+                                                <Ionicons name="navigate" size={14} color={colors.primary} />
+                                                <Text style={styles.itineraryDetailText}>{selected.distance} km</Text>
+                                            </View>
+                                        )}
+                                    </View>
+
+                                    {selected.cityArea && selected.cityArea.length > 0 && (
+                                        <View style={styles.itineraryCityAreaContainer}>
+                                            <Text style={styles.itineraryCityAreaLabel}>Areas:</Text>
+                                            <View style={styles.itineraryCityAreaBadges}>
+                                                {selected.cityArea.map((area, idx) => (
+                                                    <View key={idx} style={styles.itineraryCityAreaBadge}>
+                                                        <Text style={styles.itineraryCityAreaBadgeText}>{area}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    )}
+
+                                    {selected.additionalInfo && (
+                                        <View style={styles.itineraryAdditionalInfoContainer}>
+                                            <Ionicons name="information-circle" size={14} color={colors.primary} />
+                                            <Text style={styles.itineraryAdditionalInfo}>{selected.additionalInfo}</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
                     </ScrollView>
                 ) : (
                     <Text style={styles.noData}>No itinerary details available.</Text>
@@ -330,12 +386,29 @@ export default function BookingCard({ booking }) {
 
             <View style={styles.divider} />
 
-            {/* Total Price Section */}
-            <View style={styles.totalPriceContainer}>
-                <Text style={styles.totalPriceLabel}>Total Price</Text>
-                <Text style={styles.totalPriceValue}>
-                    ₹{booking.cost || "N/A"}
-                </Text>
+            {/* Price Summary Section */}
+            <View style={styles.priceSummaryContainer}>
+                <View style={styles.priceSummaryHeader}>
+                    <Ionicons name="pricetag" size={20} color={colors.primary} />
+                    <Text style={styles.priceSummaryTitle}>Price Summary</Text>
+                </View>
+
+                <View style={styles.priceDetailsContainer}>
+                    <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Base Price</Text>
+                        <Text style={styles.priceValue}>{formatCurrency(booking.cost)}</Text>
+                    </View>
+                    {booking.taxes && (
+                        <View style={styles.priceRow}>
+                            <Text style={styles.priceLabel}>Taxes & Fees</Text>
+                            <Text style={styles.priceValue}>{formatCurrency(booking.taxes)}</Text>
+                        </View>
+                    )}
+                    <View style={styles.totalPriceRow}>
+                        <Text style={styles.totalPriceLabel}>Total Price</Text>
+                        <Text style={styles.totalPriceValue}>{formatCurrency(booking.cost)}</Text>
+                    </View>
+                </View>
             </View>
 
             <View style={styles.divider} />
@@ -369,23 +442,42 @@ export default function BookingCard({ booking }) {
             <Modal visible={rejectModalVisible} transparent animationType="slide">
                 <View style={styles.modalContainer}>
                     <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Rejection Reason</Text>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Reject Booking</Text>
+                            <TouchableOpacity
+                                onPress={() => setRejectModalVisible(false)}
+                                style={styles.modalCloseButton}
+                            >
+                                <Ionicons name="close" size={24} color={colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.modalDivider} />
+
+                        <Text style={styles.modalSectionTitle}>Rejection Reason</Text>
                         <TextInput
-                            style={styles.input}
+                            style={styles.reasonInput}
                             value={rejectionReason}
                             onChangeText={setRejectionReason}
                             placeholder="Please specify why you're rejecting this booking"
                             multiline={true}
                             numberOfLines={4}
                         />
-                        <Text style={{ fontWeight: '600', marginBottom: 8 }}>Bid Your Price (Optional)</Text>
-                        <TextInput
-                            style={[styles.input, { height: 50 }]}
-                            value={bidPrice}
-                            onChangeText={setBidPrice}
-                            placeholder="Enter your bid price"
-                            keyboardType="numeric"
-                        />
+
+                        <View style={styles.bidPriceContainer}>
+                            <Text style={styles.modalSectionTitle}>Bid Your Price (Optional)</Text>
+                            <View style={styles.bidInputContainer}>
+                                <Text style={styles.currencySymbol}>₹</Text>
+                                <TextInput
+                                    style={styles.bidInput}
+                                    value={bidPrice}
+                                    onChangeText={setBidPrice}
+                                    placeholder="Enter your bid price"
+                                    keyboardType="numeric"
+                                />
+                            </View>
+                        </View>
+
                         <View style={styles.modalActions}>
                             <TouchableOpacity
                                 style={styles.modalCancelButton}
@@ -512,84 +604,155 @@ const styles = StyleSheet.create({
         color: colors.textPrimary,
         fontFamily: fonts.regular,
     },
-    priceValue: {
-        fontSize: fonts.sizeSmall,
-        color: colors.primary,
-        fontWeight: "600",
-        fontFamily: fonts.medium,
-    },
+
+    // Enhanced Itinerary Styles
     itineraryContainer: {
         maxHeight: 300,
+        paddingHorizontal: spacing.small,
     },
-    itineraryDay: {
+    itineraryItem: {
         marginBottom: spacing.medium,
-        backgroundColor: colors.cardBackground,
+        backgroundColor: '#f9f9f9',
         borderRadius: 8,
-        padding: spacing.small,
-        borderWidth: 1,
-        borderColor: colors.border,
+        padding: spacing.medium,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.primary,
     },
-    itineraryDayHeader: {
+    itineraryHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: spacing.small,
     },
-    itineraryDayTitle: {
+    itineraryDayBadge: {
+        backgroundColor: colors.primary,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 4,
+        marginRight: spacing.small,
+    },
+    itineraryDayText: {
+        color: colors.cardBackground,
+        fontSize: fonts.sizeXSmall,
+        fontFamily: fonts.medium,
+        fontWeight: '600',
+    },
+    itineraryTitle: {
         fontSize: fonts.sizeMedium,
         fontWeight: "600",
         color: colors.textPrimary,
         fontFamily: fonts.medium,
-    },
-    itineraryDayLocation: {
-        fontSize: fonts.sizeSmall,
-        color: colors.textSecondary,
-        fontFamily: fonts.regular,
-    },
-    itineraryItem: {
-        marginBottom: spacing.small,
-    },
-    itineraryTitle: {
-        fontSize: fonts.sizeSmall,
-        fontWeight: "600",
-        color: colors.textPrimary,
-        fontFamily: fonts.medium,
+        flex: 1,
     },
     itineraryDescription: {
         fontSize: fonts.sizeSmall,
         color: colors.textSecondary,
         fontFamily: fonts.regular,
+        marginBottom: spacing.small,
+        lineHeight: 20,
     },
-    itineraryCity: {
+    itineraryDetailsContainer: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        marginBottom: spacing.small,
+    },
+    itineraryDetailItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: spacing.medium,
+        marginBottom: spacing.tiny,
+    },
+    itineraryDetailText: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textPrimary,
+        fontFamily: fonts.regular,
+        marginLeft: 4,
+    },
+    itineraryCityAreaContainer: {
+        marginBottom: spacing.small,
+    },
+    itineraryCityAreaLabel: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.medium,
+        marginBottom: 4,
+    },
+    itineraryCityAreaBadges: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    itineraryCityAreaBadge: {
+        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 4,
+        marginRight: 6,
+        marginBottom: 6,
+    },
+    itineraryCityAreaBadgeText: {
+        fontSize: fonts.sizeXSmall,
+        color: colors.textPrimary,
+        fontFamily: fonts.regular,
+    },
+    itineraryAdditionalInfoContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: 'rgba(0, 0, 0, 0.03)',
+        padding: spacing.small,
+        borderRadius: 6,
+    },
+    itineraryAdditionalInfo: {
         fontSize: fonts.sizeXSmall,
         color: colors.textSecondary,
         fontFamily: fonts.regular,
+        marginLeft: 6,
+        flex: 1,
+        lineHeight: 18,
     },
-    itineraryHours: {
-        fontSize: fonts.sizeXSmall,
-        color: colors.textSecondary,
-        fontFamily: fonts.regular,
+
+    // Enhanced Price Summary Styles
+    priceSummaryContainer: {
+        backgroundColor: '#f9f9f9',
+        borderRadius: 8,
+        padding: spacing.medium,
+        marginVertical: spacing.small,
     },
-    itineraryDistance: {
-        fontSize: fonts.sizeXSmall,
-        color: colors.textSecondary,
-        fontFamily: fonts.regular,
+    priceSummaryHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: spacing.small,
     },
-    itineraryCityArea: {
-        fontSize: fonts.sizeXSmall,
-        color: colors.textSecondary,
-        fontFamily: fonts.regular,
+    priceSummaryTitle: {
+        fontSize: fonts.sizeMedium,
+        fontWeight: "600",
+        color: colors.textPrimary,
+        marginLeft: spacing.small,
+        fontFamily: fonts.medium,
     },
-    itineraryDivider: {
-        height: 1,
-        backgroundColor: colors.border,
-        marginTop: spacing.small,
+    priceDetailsContainer: {
+        marginLeft: spacing.large,
     },
-    totalPriceContainer: {
+    priceRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingVertical: spacing.small,
+        marginBottom: spacing.tiny,
+    },
+    priceLabel: {
+        fontSize: fonts.sizeSmall,
+        color: colors.textSecondary,
+        fontFamily: fonts.regular,
+    },
+    priceValue: {
+        fontSize: fonts.sizeSmall,
+        color: colors.textPrimary,
+        fontFamily: fonts.regular,
+    },
+    totalPriceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: spacing.small,
+        paddingTop: spacing.small,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
     },
     totalPriceLabel: {
         fontSize: fonts.sizeMedium,
@@ -598,11 +761,12 @@ const styles = StyleSheet.create({
         fontFamily: fonts.medium,
     },
     totalPriceValue: {
-        fontSize: fonts.sizeLarge,
-        fontWeight: "700",
+        fontSize: fonts.sizeMedium,
+        fontWeight: "600",
         color: colors.primary,
-        fontFamily: fonts.bold,
+        fontFamily: fonts.medium,
     },
+
     noData: {
         fontSize: fonts.sizeSmall,
         color: colors.textSecondary,
@@ -614,7 +778,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: spacing.small,
-        marginBottom: spacing.medium,
     },
     acceptButton: {
         flex: 1,
@@ -661,6 +824,8 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontWeight: '600',
     },
+
+    // Enhanced Modal Styles
     modalContainer: {
         flex: 1,
         justifyContent: 'center',
@@ -669,7 +834,6 @@ const styles = StyleSheet.create({
     },
     modalContent: {
         width: '85%',
-        padding: spacing.large,
         backgroundColor: colors.cardBackground,
         borderRadius: 12,
         ...Platform.select({
@@ -683,33 +847,84 @@ const styles = StyleSheet.create({
                 elevation: 5,
             },
         }),
+        overflow: 'hidden',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: spacing.medium,
+        backgroundColor: '#f9f9f9',
     },
     modalTitle: {
         fontSize: fonts.sizeLarge,
         fontWeight: '600',
         color: colors.textPrimary,
-        marginBottom: spacing.medium,
-        textAlign: 'center',
         fontFamily: fonts.medium,
     },
-    input: {
+    modalCloseButton: {
+        padding: 4,
+    },
+    modalDivider: {
+        height: 1,
+        backgroundColor: colors.border,
+    },
+    modalSectionTitle: {
+        fontSize: fonts.sizeMedium,
+        fontWeight: '600',
+        color: colors.textPrimary,
+        fontFamily: fonts.medium,
+        marginBottom: spacing.small,
+        marginTop: spacing.medium,
+    },
+    reasonInput: {
         borderWidth: 1,
         borderColor: colors.border,
         padding: spacing.medium,
-        marginBottom: spacing.medium,
         borderRadius: 8,
         fontFamily: fonts.regular,
         backgroundColor: '#f9f9f9',
         textAlignVertical: 'top',
         minHeight: 100,
+        fontSize: fonts.sizeSmall,
+    },
+    bidPriceContainer: {
+        marginTop: spacing.medium,
+    },
+    bidInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: 8,
+        backgroundColor: '#f9f9f9',
+        overflow: 'hidden',
+    },
+    currencySymbol: {
+        paddingHorizontal: spacing.medium,
+        fontSize: fonts.sizeMedium,
+        fontWeight: '600',
+        color: colors.textSecondary,
+        backgroundColor: '#f0f0f0',
+        paddingVertical: spacing.medium,
+    },
+    bidInput: {
+        flex: 1,
+        padding: spacing.medium,
+        fontSize: fonts.sizeMedium,
+        fontFamily: fonts.regular,
     },
     modalActions: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        padding: spacing.medium,
+        marginTop: spacing.medium,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
     },
     modalSubmitButton: {
         backgroundColor: colors.primary,
-        paddingVertical: spacing.small,
+        paddingVertical: spacing.medium,
         paddingHorizontal: spacing.medium,
         borderRadius: 8,
         flex: 1,
@@ -725,12 +940,13 @@ const styles = StyleSheet.create({
     modalCancelButton: {
         borderWidth: 1,
         borderColor: colors.border,
-        paddingVertical: spacing.small,
+        paddingVertical: spacing.medium,
         paddingHorizontal: spacing.medium,
         borderRadius: 8,
         flex: 1,
         alignItems: 'center',
         marginRight: spacing.small,
+        backgroundColor: '#f9f9f9',
     },
     modalCancelText: {
         color: colors.textSecondary,

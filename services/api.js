@@ -18,7 +18,6 @@ export async function fetchNewBookings(token) {
         }
 
         const data = await response.json();
-        console.log("fetchNewBookings data:", data); // Added log to check itinerary presence
         return data; // Return the raw data
     } catch (error) {
         console.error("Error fetching new bookings:", error.message);
@@ -35,7 +34,6 @@ export async function updateCabBooking(_id, updateData) {
             },
             body: JSON.stringify(updateData),
         });
-        console.log("response", response);
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Update booking API error response text:", errorText);
