@@ -172,16 +172,16 @@ export default function BookingCard({ booking }) {
                             <Text style={styles.infoLabel}>Name</Text>
                             <Text style={styles.infoValue}>{userInfo.name || "N/A"}</Text>
                         </View>
-                        <View style={styles.userInfoItem}>
+                        {/* <View style={styles.userInfoItem}>
                             <Text style={styles.infoLabel}>Email</Text>
                             <Text style={styles.infoValue}>{userInfo.email || "N/A"}</Text>
-                        </View>
+                        </View> */}
                     </View>
                     <View style={styles.userInfoRow}>
-                        <View style={styles.userInfoItem}>
+                        {/* <View style={styles.userInfoItem}>
                             <Text style={styles.infoLabel}>Mobile</Text>
                             <Text style={styles.infoValue}>{userInfo.mobile || "N/A"}</Text>
-                        </View>
+                        </View> */} 
                         <View style={styles.userInfoItem}>
                             <Text style={styles.infoLabel}>Passengers</Text>
                             <Text style={styles.infoValue}>

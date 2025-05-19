@@ -130,13 +130,13 @@ export default function Sidebar() {
                 {/* Navigation Menu */}
                 <ScrollView>
                     <TouchableOpacity 
-                        style={styles.menuItem} 
-                        onPress={() => handleNavigation('Dashboard')}
+                        style={styles.menuItem}
+                        onPress={() => handleNavigation('Profile')}
                     >
                         <View style={styles.menuIconContainer}>
-                            <Ionicons name="home" size={20} color={colors.primary} />
+                            <Ionicons name="person" size={20} color={colors.primary} />
                         </View>
-                        <Text style={styles.menuText}>Dashboard</Text>
+                        <Text style={styles.menuText}>Profile</Text>
                     </TouchableOpacity>
                     
                     <TouchableOpacity 
@@ -169,15 +169,7 @@ export default function Sidebar() {
                         <Text style={styles.menuText}>Completed Bookings</Text>
                     </TouchableOpacity>
                     
-                    <TouchableOpacity 
-                        style={styles.menuItem}
-                        onPress={() => handleNavigation('Profile')}
-                    >
-                        <View style={styles.menuIconContainer}>
-                            <Ionicons name="person" size={20} color={colors.primary} />
-                        </View>
-                        <Text style={styles.menuText}>Profile</Text>
-                    </TouchableOpacity>
+                    
                     
                     <TouchableOpacity 
                         style={styles.menuItem}

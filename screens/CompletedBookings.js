@@ -1,45 +1,33 @@
-import React, { useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from "react-native";
 import { colors, fonts, spacing } from "../styles/theme";
 import { AuthContext } from "../context/AuthContext";
 import BookingCard from "../components/BookingCard";
 import { fetchBookingsByStates } from "../services/api";
-import { useFocusEffect } from "@react-navigation/native";
 
-export default function PendingBookings() {
+export default function CompletedBookings() {
   const { userToken } = useContext(AuthContext);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Filter bookings with status 'completed'
   const loadBookings = async () => {
     setLoading(true);
     try {
       const data = await fetchBookingsByStates([], userToken);
-      const now = new Date();
-      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-      const pending = data.filter((booking) => {
-        const createdAt = new Date(booking.createdAt);
-        // Include only bookings with status 'unresponded' or 'pending' and exclude 'accepted'
-        return (
-          (booking.status === "unresponded" || booking.status === "pending") &&
-          createdAt >= twentyFourHoursAgo
-        );
-      });
-      setBookings(pending);
+      const completed = data.filter((booking) => booking.status === "completed");
+      setBookings(completed);
     } catch (error) {
-      console.error("Failed to fetch pending bookings:", error);
+      console.error("Failed to fetch completed bookings:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadBookings();
-    }, [])
-  );
+  useEffect(() => {
+    loadBookings();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -53,7 +41,7 @@ export default function PendingBookings() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading pending bookings...</Text>
+        <Text style={styles.loadingText}>Loading completed bookings...</Text>
       </View>
     );
   }
@@ -61,7 +49,7 @@ export default function PendingBookings() {
   if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No pending bookings available.</Text>
+        <Text style={styles.emptyText}>No completed bookings available.</Text>
       </View>
     );
   }

@@ -1,12 +1,11 @@
-import React, { useState, useContext } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from "react-native";
 import { colors, fonts, spacing } from "../styles/theme";
 import { AuthContext } from "../context/AuthContext";
 import BookingCard from "../components/BookingCard";
-import { fetchBookingsByStates } from "../services/api";
-import { useFocusEffect } from "@react-navigation/native";
+import { fetchNewBookings } from "../services/api";
 
-export default function PendingBookings() {
+export default function NewBookings() {
   const { userToken } = useContext(AuthContext);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,31 +14,26 @@ export default function PendingBookings() {
   const loadBookings = async () => {
     setLoading(true);
     try {
-      const data = await fetchBookingsByStates([], userToken);
+      const data = await fetchNewBookings(userToken);
+      // Filter bookings within last 24 hours
       const now = new Date();
-      const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-      const pending = data.filter((booking) => {
+      const filtered = data.filter((booking) => {
+        if (!booking.createdAt) return false;
         const createdAt = new Date(booking.createdAt);
-        // Include only bookings with status 'unresponded' or 'pending' and exclude 'accepted'
-        return (
-          (booking.status === "unresponded" || booking.status === "pending") &&
-          createdAt >= twentyFourHoursAgo
-        );
+        const diffHours = (now - createdAt) / (1000 * 60 * 60);
+        return diffHours <= 24;
       });
-      setBookings(pending);
+      setBookings(filtered);
     } catch (error) {
-      console.error("Failed to fetch pending bookings:", error);
+      console.error("Failed to fetch new bookings:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useFocusEffect(
-    React.useCallback(() => {
-      loadBookings();
-    }, [])
-  );
+  useEffect(() => {
+    loadBookings();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -53,7 +47,7 @@ export default function PendingBookings() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading pending bookings...</Text>
+        <Text style={styles.loadingText}>Loading new bookings...</Text>
       </View>
     );
   }
@@ -61,7 +55,7 @@ export default function PendingBookings() {
   if (bookings.length === 0) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>No pending bookings available.</Text>
+        <Text style={styles.emptyText}>No new bookings available.</Text>
       </View>
     );
   }

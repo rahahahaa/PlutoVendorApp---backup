@@ -213,7 +213,7 @@ export default function LoginScreen() {
                             <View style={styles.divider} />
                         </View>
 
-                        <View style={styles.socialButtonsContainer}>
+                        {/* <View style={styles.socialButtonsContainer}>
                             <TouchableOpacity style={styles.socialButton}>
                                 <Ionicons name="logo-google" size={20} color="#4285F4" />
                                 <Text style={styles.socialButtonText}>Google</Text>
@@ -223,7 +223,7 @@ export default function LoginScreen() {
                                 <Ionicons name="logo-apple" size={20} color="#000000" />
                                 <Text style={styles.socialButtonText}>Apple</Text>
                             </TouchableOpacity>
-                        </View>
+                        </View> */}
 
                         <View style={styles.securitySection}>
                             <Ionicons name="shield-checkmark" size={20} color="#34C759" />

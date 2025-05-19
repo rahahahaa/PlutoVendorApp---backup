@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from "react";
-import { View, FlatList, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
+import { View, FlatList, Text, TouchableOpacity, StyleSheet, Image, RefreshControl } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { fetchNewBookings } from "../services/api";
 import BookingCard from "../components/BookingCard";
@@ -12,20 +12,31 @@ export default function HomeScreen() {
     const { isSidebarOpen, setIsSidebarOpen } = useContext(SidebarContext);
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const fetchData = async () => {
+        try {
+            const responseData = await fetchNewBookings();
+            setBookings(responseData);
+        } catch (error) {
+            console.error("Error fetching bookings:", error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const responseData = await fetchNewBookings();
-                setBookings(responseData);
-            } catch (error) {
-                console.error("Error fetching bookings:", error.message);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
+    }, []);
+
+    // Auto-refresh every 60 seconds
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setRefreshing(true);
+            fetchData().then(() => setRefreshing(false));
+        }, 60000); // 60000 ms = 60 seconds
+
+        return () => clearInterval(interval);
     }, []);
 
     if (loading) {
@@ -65,6 +76,13 @@ export default function HomeScreen() {
                         keyExtractor={(item, index) => item._id || item.id || index.toString()}
                         renderItem={({ item }) => <BookingCard booking={item} />}
                         ListEmptyComponent={<Text style={styles.emptyMessage}>No bookings available.</Text>}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={async () => {
+                                setRefreshing(true);
+                                await fetchData();
+                                setRefreshing(false);
+                            }} />
+                        }
                     />
                 )}
             </View>
