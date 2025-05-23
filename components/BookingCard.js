@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, spacing } from "../styles/theme";
 import { updateCabBooking } from "../services/api";
 
-export default function BookingCard({ booking, onAccept }) {
+export default function BookingCard({ booking, onAccept, onReject }) {
     const [rejectModalVisible, setRejectModalVisible] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [bidPrice, setBidPrice] = useState("");
@@ -14,11 +14,14 @@ export default function BookingCard({ booking, onAccept }) {
     const [vehicleDetailsExpanded, setVehicleDetailsExpanded] = useState(false);
     const [itineraryExpanded, setItineraryExpanded] = useState(false);
 
+    const [localBookingStatus, setLocalBookingStatus] = useState(booking.bookingStatus || "pending");
+
     const handleAccept = async () => {
         try {
             await updateCabBooking(booking._id, {
-                status: "completed",
+                bookingStatus: "accepted",
             });
+            setLocalBookingStatus("accepted");
             Alert.alert("Success", "Booking accepted successfully.");
             if (onAccept) {
                 onAccept();
@@ -45,22 +48,21 @@ export default function BookingCard({ booking, onAccept }) {
             const updateData = {
                 bookingStatus: "rejected",
                 responseDetails: {
-                    status: "rejected",
                     reason: rejectionReason,
-                    respondedAt: new Date(),
-                    amount: 0,
+                    amount: bidPrice ? parseFloat(bidPrice) : 0,
                 },
             };
-            if (bidPrice) {
-                updateData.responseDetails.amount = parseFloat(bidPrice);
-            }
             await updateCabBooking(booking._id, updateData);
+            setLocalBookingStatus("rejected");
             Alert.alert("Success", "Booking rejected successfully.");
             setRejectModalVisible(false);
             setRejectionReason("");
             setBidPrice("");
+            if (onReject) {
+                onReject();
+            }
         } catch (error) {
-            Alert.alert("Error", "Failed to reject booking. Please try again.");
+            Alert.alert("Error", `Failed to reject booking. ${error.message || error.toString()}`);
         }
     };
 
@@ -81,9 +83,9 @@ export default function BookingCard({ booking, onAccept }) {
     };
 
     let statusColor = colors.primary;
-    if (booking.bookingStatus === "accepted") {
+    if (localBookingStatus === "accepted") {
         statusColor = colors.success;
-    } else if (booking.bookingStatus === "rejected") {
+    } else if (localBookingStatus === "rejected") {
         statusColor = colors.danger;
     }
 
@@ -138,7 +140,7 @@ export default function BookingCard({ booking, onAccept }) {
                 <View style={styles.statusContainer}>
                     <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
                     <Text style={[styles.statusText, { color: statusColor }]}>
-                        {booking.bookingStatus ? booking.bookingStatus.charAt(0).toUpperCase() + booking.bookingStatus.slice(1) : "Pending"}
+                    {localBookingStatus ? localBookingStatus.charAt(0).toUpperCase() + localBookingStatus.slice(1) : "Pending"}
                     </Text>
                 </View>
             </View>

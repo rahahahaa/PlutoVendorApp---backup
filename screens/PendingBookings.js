@@ -21,9 +21,9 @@ export default function PendingBookings() {
 
       const pending = data.filter((booking) => {
         const createdAt = new Date(booking.createdAt);
-        // Include only bookings with status 'unresponded' or 'pending' and exclude 'accepted'
+        // Include only bookings with bookingStatus 'unresponded' or 'pending' and exclude 'accepted'
         return (
-          (booking.status === "unresponded" || booking.status === "pending") &&
+          (booking.bookingStatus === "unresponded" || booking.bookingStatus === "pending") &&
           createdAt >= twentyFourHoursAgo
         );
       });
@@ -47,7 +47,13 @@ export default function PendingBookings() {
     setRefreshing(false);
   };
 
-  const renderItem = ({ item }) => <BookingCard booking={item} />;
+  const renderItem = ({ item }) => (
+    <BookingCard
+      booking={item}
+      onAccept={loadBookings}
+      onReject={loadBookings}
+    />
+  );
 
   if (loading) {
     return (

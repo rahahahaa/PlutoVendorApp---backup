@@ -41,7 +41,13 @@ export default function NewBookings() {
     setRefreshing(false);
   };
 
-  const renderItem = ({ item }) => <BookingCard booking={item} />;
+  const renderItem = ({ item }) => (
+    <BookingCard
+      booking={item}
+      onAccept={loadBookings}
+      onReject={loadBookings}
+    />
+  );
 
   if (loading) {
     return (
