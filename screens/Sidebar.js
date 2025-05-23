@@ -168,8 +168,16 @@ export default function Sidebar() {
                         </View>
                         <Text style={styles.menuText}>Completed Bookings</Text>
                     </TouchableOpacity>
-                    
-                    
+
+                    <TouchableOpacity 
+                        style={styles.menuItem}
+                        onPress={() => handleNavigation('BalanceSheet')}
+                    >
+                        <View style={styles.menuIconContainer}>
+                            <Ionicons name="document-text" size={20} color={colors.primary} />
+                        </View>
+                        <Text style={styles.menuText}>Balance Sheet</Text>
+                    </TouchableOpacity>
                     
                     <TouchableOpacity 
                         style={styles.menuItem}
@@ -314,5 +322,3 @@ const styles = StyleSheet.create({
         flex: 1,
     }
 });
-
-// Fix for missing ScrollView import

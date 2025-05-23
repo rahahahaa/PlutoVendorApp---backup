@@ -4,6 +4,7 @@ import { colors, fonts, spacing } from "../styles/theme";
 import { AuthContext } from "../context/AuthContext";
 import BookingCard from "../components/BookingCard";
 import { fetchBookingsByStates } from "../services/api";
+import { useFocusEffect } from "@react-navigation/native";
 
 export default function CompletedBookings() {
   const { userToken } = useContext(AuthContext);
@@ -25,9 +26,11 @@ export default function CompletedBookings() {
     }
   };
 
-  useEffect(() => {
-    loadBookings();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadBookings();
+    }, [])
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

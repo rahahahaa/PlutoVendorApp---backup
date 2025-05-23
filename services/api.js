@@ -48,30 +48,48 @@ export async function updateCabBooking(_id, updateData) {
     }
 }
 
+// services/api.js
 export async function loginCabUser(email, password) {
+    const url = `${API_HOST}/api/cabuser/login`;
+
+    console.log("Calling login endpoint:", url);
+    console.log("Email:", email);
+
     try {
-        const response = await fetch(`${API_HOST}/api/cabuser/login`, {
+        const response = await fetch(url, {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                action: "login",
                 email,
-                password,
-            }),
+                password
+            })
         });
+
+        console.log("Response status:", response.status);
+        console.log("Response headers:", [...response.headers]);
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("Login API error response text:", errorText);
-            throw new Error(`HTTP error! Status: ${response.status}`);
+            console.error("Raw error from server:", errorText);
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${errorText}`);
         }
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json(); // Try parsing as JSON
+        } catch (e) {
+            const text = await response.text();
+            console.warn("Response was not JSON", text);
+            throw new Error("Server returned invalid JSON");
+        }
+
+        console.log("Received from server:", data);
         return data;
+
     } catch (error) {
-        console.error("Error logging in cab user:", error.message);
+        console.error("Login failed:", error.message);
         throw error;
     }
 }
@@ -110,7 +128,7 @@ export async function signupCabUser(name, email, password, mobile) {
 
 export async function updateCabUser(id, updateData, token) {
     try {
-        const response = await fetch(`${API_HOST}/api/cabuser/login`, {
+        const response = await fetch(`${API_HOST}/api/cabuser/update/${id}`, {
             method: "PUT",
             headers: {
                 "Content-Type": "application/json",

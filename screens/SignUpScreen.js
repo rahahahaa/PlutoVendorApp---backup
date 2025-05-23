@@ -19,6 +19,7 @@ import { AuthContext } from "../context/AuthContext";
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { signupCabUser } from "../services/api";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -100,17 +101,38 @@ export default function SignUpScreen() {
 
         setLoading(true);
         try {
-            // Pass empty values for the vendor details we're moving to the profile section
-            const response = await signupCabUser(name, email, password, mobile, "", "", []);
+            const response = await signupCabUser(name, email, password, mobile);
             if (response && response.token) {
                 await login(response.token);
-                // Navigate to a screen that prompts for vendor details or directly to Home
+                // Save user profile data in AsyncStorage for Profile screen
+                const userProfile = {
+                    id: response.data && response.data.user && response.data.user._id ? response.data.user._id : "",
+                    name: response.data && response.data.user && response.data.user.name ? response.data.user.name : name,
+                    email: response.data && response.data.user && response.data.user.email ? response.data.user.email : email,
+                    mobile: response.data && response.data.user && response.data.user.mobile ? response.data.user.mobile : mobile,
+                    drivingLicense: response.data && response.data.user && response.data.user.drivingLicense ? response.data.user.drivingLicense : "",
+                    vehicles: response.data && response.data.user && response.data.user.vehicles ? response.data.user.vehicles : [{ vehicleName: "", rcNumber: "" }],
+                    selectedStates: response.data && response.data.user && response.data.user.states ? response.data.user.states : [],
+                    profileComplete: response.data && response.data.user && response.data.user.profileComplete ? response.data.user.profileComplete : false,
+                    lastUpdated: new Date().toISOString()
+                };
+                await AsyncStorage.setItem('userProfile', JSON.stringify(userProfile));
+                console.log("Saved userProfile to AsyncStorage:", userProfile);
+                // Navigate to Home screen after signup
                 navigation.navigate("Home");
             } else {
                 Alert.alert("Error", "Sign up failed. Please try again.");
             }
         } catch (error) {
-            Alert.alert("Error", error.message || "Sign up failed. Please try again.");
+            if (error.response && error.response.data && error.response.data.message) {
+                if (error.response.data.message.includes('duplicate key error')) {
+                    Alert.alert("Error", "Email already registered. Please use a different email or login.");
+                } else {
+                    Alert.alert("Error", error.response.data.message);
+                }
+            } else {
+                Alert.alert("Error", error.message || "Sign up failed. Please try again.");
+            }
         } finally {
             setLoading(false);
         }

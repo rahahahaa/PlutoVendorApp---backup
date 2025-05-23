@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors, fonts, spacing } from "../styles/theme";
 import { updateCabBooking } from "../services/api";
 
-export default function BookingCard({ booking }) {
+export default function BookingCard({ booking, onAccept }) {
     const [rejectModalVisible, setRejectModalVisible] = useState(false);
     const [rejectionReason, setRejectionReason] = useState("");
     const [bidPrice, setBidPrice] = useState("");
@@ -17,15 +17,12 @@ export default function BookingCard({ booking }) {
     const handleAccept = async () => {
         try {
             await updateCabBooking(booking._id, {
-                bookingStatus: "accepted",
-                responseDetails: {
-                    status: "accepted",
-                    respondedAt: new Date(),
-                    amount: 0,
-                    reason: "",
-                },
+                status: "completed",
             });
             Alert.alert("Success", "Booking accepted successfully.");
+            if (onAccept) {
+                onAccept();
+            }
         } catch (error) {
             Alert.alert("Error", "Failed to accept booking. Please try again.");
         }

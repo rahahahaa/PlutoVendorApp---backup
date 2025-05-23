@@ -1,3 +1,4 @@
+
 // App.js
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
@@ -9,6 +10,7 @@ import Profile from "./screens/Profile";
 import NewBookings from "./screens/NewBookings";
 import PendingBookings from "./screens/PendingBookings";
 import CompletedBookings from "./screens/CompletedBookings";
+import BalanceSheet from "./screens/BalanceSheet";
 import { SidebarProvider } from "./context/SidebarContext";
 import { AuthProvider } from "./context/AuthContext";
 
@@ -27,6 +29,7 @@ export default function App() {
             <Stack.Screen name="NewBookings" component={NewBookings} />
             <Stack.Screen name="PendingBookings" component={PendingBookings} />
             <Stack.Screen name="CompletedBookings" component={CompletedBookings} />
+            <Stack.Screen name="BalanceSheet" component={BalanceSheet} />
           </Stack.Navigator>
         </NavigationContainer>
       </SidebarProvider>

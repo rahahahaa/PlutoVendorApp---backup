@@ -18,7 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { loginCabUser } from '../services/api';
+import { API_HOST, loginCabUser } from '../services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -38,7 +38,6 @@ export default function LoginScreen() {
     const slideAnim = useRef(new Animated.Value(30)).current;
 
     useEffect(() => {
-        // Animate the login form when component mounts
         Animated.parallel([
             Animated.timing(fadeAnim, {
                 toValue: 1,
@@ -52,9 +51,8 @@ export default function LoginScreen() {
             })
         ]).start();
 
-        // Pre-populate for development/testing only
-        setEmail('vendor@plutoride.com');
-        setPassword('password');
+        setEmail('');
+        setPassword('');
     }, []);
 
     const onPressIn = () => {
@@ -78,27 +76,30 @@ export default function LoginScreen() {
             Alert.alert("Error", "Please enter your email");
             return;
         }
+
         if (!password) {
             Alert.alert("Error", "Please enter your password");
             return;
         }
 
         setLoading(true);
+
         try {
-            const response = await loginCabUser(email, password);
-            if (response && response.token) {
-                await login(response.token);
-                navigation.navigate('Home');
+            const result = await loginCabUser(email, password); // Calls POST /api/cabuser/login
+
+            if (result && result.token && result.data?.user) {
+                await login(result.token, result.data.user);
+                navigation.navigate("Home");
             } else {
-                Alert.alert('Error', 'Login failed. Please check your credentials.');
+                throw new Error("Incomplete response from server");
             }
         } catch (error) {
-            Alert.alert('Error', error.message || 'Login failed. Please check your credentials.');
+            console.error("Login failed:", error.message);
+            Alert.alert("Error", error.message || "Failed to log in");
         } finally {
             setLoading(false);
         }
     };
-
     const toggleShowPassword = () => {
         setShowPassword(!showPassword);
     };
@@ -212,18 +213,6 @@ export default function LoginScreen() {
                             <Text style={styles.orText}>OR</Text>
                             <View style={styles.divider} />
                         </View>
-
-                        {/* <View style={styles.socialButtonsContainer}>
-                            <TouchableOpacity style={styles.socialButton}>
-                                <Ionicons name="logo-google" size={20} color="#4285F4" />
-                                <Text style={styles.socialButtonText}>Google</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity style={styles.socialButton}>
-                                <Ionicons name="logo-apple" size={20} color="#000000" />
-                                <Text style={styles.socialButtonText}>Apple</Text>
-                            </TouchableOpacity>
-                        </View> */}
 
                         <View style={styles.securitySection}>
                             <Ionicons name="shield-checkmark" size={20} color="#34C759" />
@@ -398,29 +387,6 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
         color: '#7F8C8D',
         fontWeight: '600',
-    },
-    socialButtonsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 20,
-    },
-    socialButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#F8F9FA',
-        borderRadius: 12,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        flex: 0.48,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    socialButtonText: {
-        marginLeft: 8,
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#2C3E50',
     },
     securitySection: {
         flexDirection: 'row',
